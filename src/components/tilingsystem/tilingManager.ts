@@ -1259,8 +1259,31 @@ export class TilingManager {
             return;
 
         (window as ExtendedWindow).assignedTile = undefined;
-        const vacantTile = this._findEmptyTile(window);
-        if (!vacantTile) return;
+        
+        // --- START OF MODIFICATION ---
+
+        // First, try to find an empty tile like before.
+        let targetTile = this._findEmptyTile(window);
+
+        // If no empty tile was found, we will default to the first tile
+        // in the current layout. This ensures a window always gets tiled.
+        if (!targetTile) {
+            this._debug('No vacant tiles found, defaulting to first tile.');
+            const tiles = GlobalState.get().getSelectedLayoutOfMonitor(
+                window.get_monitor(),
+                global.workspaceManager.get_active_workspace_index(),
+            ).tiles;
+
+            // Make sure the layout is not empty before proceeding.
+            if (tiles && tiles.length > 0) {
+                targetTile = tiles[0];
+            }
+        }
+
+        // If we still don't have a target tile (e.g., layout is empty), exit.
+        if (!targetTile) return;
+        
+        // --- END OF MODIFICATION ---
 
         if (windowCreated) {
             const windowActor =
@@ -1277,14 +1300,15 @@ export class TilingManager {
                     window.get_transient_for() === null &&
                     !window.is_attached_dialog()
                 )
-                    this._easeWindowRectFromTile(vacantTile, window, true);
+                    this._easeWindowRectFromTile(targetTile, window, true);
 
                 windowActor.disconnect(id);
             });
         } else {
-            this._easeWindowRectFromTile(vacantTile, window, true);
+            this._easeWindowRectFromTile(targetTile, window, true);
         }
     }
+
 
     private _findEmptyTile(window: Meta.Window): Tile | undefined {
         const tiledWindows: ExtendedWindow[] = getWindows()
